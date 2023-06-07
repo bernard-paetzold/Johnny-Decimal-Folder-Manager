@@ -1,0 +1,11 @@
+{
+	"id": "johnny-decimal-manager",
+	"name": "Johnny Decimal Manager",
+	"version": "1.0.0",
+	"minAppVersion": "0.15.0",
+	"description": "This is a plugin desgined to rename folders to fit in with my take on the johnny-decimal system.",
+	"author": "Bernard Paetzold",
+	"authorUrl": "",
+	"fundingUrl": "",
+	"isDesktopOnly": false
+}
