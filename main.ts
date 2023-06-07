@@ -9,8 +9,6 @@ export default class MyPlugin extends Plugin
 		console.log("Initialising johnny decimal manager")
 		let folders: TAbstractFile[] = []
 
-		app.vault.on("rename", function(file, oldname) {})
-		//this.registerEvent(this.app.vault.on('create', () => 
 		this.addCommand(
 		{
 			id: "refresh-johnny-decimal-index",
@@ -159,6 +157,7 @@ function renameFiles(allFolders: TAbstractFile[])
 				//If the folder is invalid, rename
 				if (rename == true)
 				{
+					console.log(currentChildren[l].name+ " -> " + currentParentIndex + "." + childIndex + "-" + currentChildren[l].name)
 					this.app.fileManager.renameFile(currentChildren[l], (parentFolders[i].path + "/" + currentParentIndex + "." + childIndex + "-" + folderName))
 				}
 			}
@@ -173,6 +172,7 @@ function renameFiles(allFolders: TAbstractFile[])
 				{
 					childIndex = '0' + childIndex
 				}
+				console.log(currentChildren[l].name+ " -> " + currentParentIndex + "." + childIndex + "-" + currentChildren[l].name)
 				this.app.fileManager.renameFile(currentChildren[l], (parentFolders[i].path + "/" + currentParentIndex + "." + childIndex + "-" + currentChildren[l].name))
 			}
 		}	
@@ -187,216 +187,118 @@ function removeDuplicateIndex()
 	var childFolders = sortedFolders[1]
 
 
-	//Go folder by folder and get all child folders
 	for (let i = 0; i < parentFolders.length; i++)
 	{
 		let currentChildren: TAbstractFile[] = []
+		let childrenNames: string[] = [];
 		for (let l = 0; l < childFolders.length; l++)
 		{
 			//Get all children of current parent folder
 			if (childFolders[l].path.includes(parentFolders[i].path))
 			{
 				currentChildren[currentChildren.length] = childFolders[l]
+				childrenNames[childrenNames.length] = childFolders[l].name
 			}
 		}
-		var min: number
-		for (let l = 0; l < currentChildren.length - 1; l++)
-		{
-			min = l
-			for (let x = l + 1; x < currentChildren.length; x++)
-			{
-				if (currentChildren[x].name < currentChildren[min].name)
-				{
-					min = x
-				}
 
-				var temp = currentChildren[min]
-				currentChildren[min] = currentChildren[l]
-				currentChildren[l] = temp
-			}
-		}
+		//Rename
 		//Loop through all children
-		for (let l = 0; l < currentChildren.length; l++)
+		for (let l = 0; l < childrenNames.length; l++)
 		{
-
-			var childIndexAndName = currentChildren[l].name.split(".", 2)
-			var childIndex = childIndexAndName[1].split("-", 1)[0]
-
-			//Check against others to see if there is a duplicate
-			var x = l + 1
-			var duplicateFound = false
-			while (x < currentChildren.length && duplicateFound == false)
+			if (childrenNames[l].contains("-") && childrenNames[l].contains("."))
 			{
-				var currChildIndexAndName = currentChildren[x].name.split(".", 2)
-				var currChildIndex = currChildIndexAndName[1].split("-", 1)[0]
-				console.log(currentChildren[l].name + ", " + currentChildren[x].path)
-				if (childIndex == currChildIndex)
+				var childIndexAndName = childrenNames[l].split(".", 2)
+				var childIndex = childIndexAndName[1].split("-", 1)[0]
+
+				//Check against others to see if there is a duplicate
+				var x = l + 1
+				while (x < childrenNames.length && duplicatesExists(childrenNames))
 				{
-					//Get current index
-					var numIndex:	number
-					if (currChildIndex[0] == '0')
+					if (childrenNames[x].contains("-") && childrenNames[x].contains("."))
 					{
-						numIndex = Number.parseInt(currChildIndex[1])
-					}
-					else
-					{
-						numIndex = Number.parseInt(currChildIndex)
-					}
+						var currChildIndexAndName = childrenNames[x].split(".", 2)
+						var currChildIndex = currChildIndexAndName[1].split("-", 1)[0]
+						if (childIndex == currChildIndex)
+						{
+							//Get current index
+							var numIndex:	number
+							if (currChildIndex[0] == '0')
+							{
+								numIndex = Number.parseInt(currChildIndex[1])
+							}
+							else
+							{
+								numIndex = Number.parseInt(currChildIndex)
+							}
 
-					var newChildIndex = (numIndex + 1).toString()
-					if (newChildIndex.length < 2)
-					{
-						newChildIndex = '0' + newChildIndex
-					}
+							var newChildIndex = (numIndex + 1).toString()
+							if (newChildIndex.length < 2)
+							{
+								newChildIndex = '0' + newChildIndex
+							}
 
-					var folderName = currentChildren[x].name.replace(currentChildren[x].name.split("-", 2)[0], "")
-					var newFolder = currentChildren[x].name.split(".", 2)[0] + "." + newChildIndex + folderName	
-					console.log(currentChildren[x].name)		
-					this.app.fileManager.renameFile(currentChildren[x], (parentFolders[i].path + "/" + newFolder))
-					console.log(currentChildren[x].name)
-					console.log(currentChildren[x])
-					duplicateFound = true								
+							var folderName = childrenNames[x].replace(childrenNames[x].split("-", 2)[0], "")
+							var newFolder = childrenNames[x].split(".", 2)[0] + "." + newChildIndex + folderName	
+							//Rename folder
+							childrenNames[x] = newFolder		
+							
+							//Update array sorting
+							var min: number
+							for (let l = 0; l < childrenNames.length - 1; l++)
+							{
+								min = l
+								for (let x = l + 1; x < childrenNames.length; x++)
+								{
+									if (childrenNames[x].split(".", 2)[1].split("-")[0] < childrenNames[min].split(".", 2)[1].split("-")[0])
+									{
+										min = x
+									}
+
+									var temp = childrenNames[min]
+									childrenNames[min] = childrenNames[l]
+									childrenNames[l] = temp
+
+									var tempFolder = currentChildren[min]
+									currentChildren[min] = currentChildren[l]
+									currentChildren[l] = tempFolder
+								}
+							}
+						}
+					}
+					x++
 				}
-				x++
 			}
-
-			if (duplicateFound)
+		}	
+		//Apply
+		for (let l = 0; l < childrenNames.length; l++)
+		{
+			if (currentChildren[l].name != childrenNames[l])
 			{
-				removeDuplicateIndex()
+				console.log(currentChildren[l].name + " -> " + childrenNames[l])
+				this.app.fileManager.renameFile(currentChildren[l], parentFolders[i].path + "/" + childrenNames[l]);
 			}
-		}		
+		}
 	}
+
 }
-/*function removeDuplicateIndex()
+function duplicatesExists(names: string[]): boolean
 {
-	var sortedFolders = getSortedFolders()
-	var parentFolders = sortedFolders[0]
-	var childFolders = sortedFolders[1]
-
-
-	//Go folder by folder and get all child folders
-	for (let i = 0; i < parentFolders.length; i++)
-	{
-		let currentChildren: TAbstractFile[] = []
-		for (let l = 0; l < childFolders.length; l++)
-		{
-			//Get all children of current parent folder
-			if (childFolders[l].path.includes(parentFolders[i].path))
-			{
-				currentChildren[currentChildren.length] = childFolders[l]
-			}
-		}
-		var min: number
-		for (let l = 0; l < currentChildren.length - 1; l++)
-		{
-			min = l
-			for (let x = l + 1; x < currentChildren.length; x++)
-			{
-				if (currentChildren[x].name < currentChildren[min].name)
-				{
-					min = x
-				}
-
-				var temp = currentChildren[min]
-				currentChildren[min] = currentChildren[l]
-				currentChildren[l] = temp
-			}
-		}
-		//Loop through all children
-		for (let l = 0; l < currentChildren.length; l++)
-		{
-
-			var childIndexAndName = currentChildren[l].name.split(".", 2)
-			var childIndex = childIndexAndName[1].split("-", 1)[0]
-
-			//Check against others to see if there is a duplicate
-			var x = l + 1
-			while (x < currentChildren.length)
-			{
-				var currChildIndexAndName = currentChildren[x].name.split(".", 2)
-				var currChildIndex = currChildIndexAndName[1].split("-", 1)[0]
-				//console.log(currentChildren[l].name + ", " + currentChildren[x].path)
-				if (childIndex == currChildIndex)
-				{
-					//console.log( l + ". " + currentChildren[l].path + " = " +  x + ". " + currentChildren[x].path)
-					
-					//Redundant index, rename all following indices
-					var y = x
-					var gapFound = false;
-					while (y < currentChildren.length && gapFound == false)
-					{
-						currChildIndexAndName = currentChildren[y].name.split(".", 2)
-						currChildIndex = currChildIndexAndName[1].split("-", 1)[0]
-						//Get current index
-						var numIndex:	number
-						if (currChildIndex[0] == '0')
-						{
-							numIndex = Number.parseInt(currChildIndex[1])
-						}
-						else
-						{
-							numIndex = Number.parseInt(currChildIndex)
-						}
-
-						var newChildIndex = (numIndex + 1).toString()
-						if (newChildIndex.length < 2)
-						{
-							newChildIndex = '0' + newChildIndex
-						}
-
-						var folderName = currentChildren[y].name.replace(currentChildren[y].name.split("-", 2)[0], "")
-						var newFolder = currentChildren[y].name.split(".", 2)[0] + "." + newChildIndex + folderName	
-						//console.log(currentChildren[y].name + " -> " + newFolder)			
-						this.app.fileManager.renameFile(currentChildren[y], (parentFolders[i].path + "/" + newFolder))
-						//this.app.vault.rename(currentChildren[y], (parentFolders[i].path + "/" + newFolder))
-						console.log(duplicatesExists(parentFolders[i].name))
-						if (!duplicatesExists(parentFolders[i].name))
-						{
-							gapFound = true
-							console.log("Stop at: " + (y + 1))
-						}
-						y++
-					}
-				}
-				x++
-			}
-		}		
-	}
-			
-}*/
-
-function duplicatesExists(parentFolderName: string): boolean
-{
-	var sortedFolders = getSortedFolders()
-	var parentFolders = sortedFolders[0]
-	var childFolders = sortedFolders[1]
 	var duplicateExists = false
 
-	for (let i = 0; i < parentFolders.length; i++)
+	for (let i = 0; i < names.length; i++)
 	{
-		let currentChildren: TAbstractFile[] = []
-		for (let l = 0; l < childFolders.length; l++)
+		let x = i + 1
+		while (x < names.length && !duplicateExists)
 		{
-			//Get all children of current parent folder
-			if (childFolders[l].path.includes(parentFolders[i].path))
+			if (names[i].contains("-") && names[i].contains(".") && names[x].contains("-") && names[x].contains("."))
 			{
-				currentChildren[currentChildren.length] = childFolders[l]
-			}
-		}
-		for (let i = 0; i < currentChildren.length; i++)
-		{
-			var currIndex = currentChildren[i].name.split("-", 1)[0];
-
-			for (let x = i + 1; x < currentChildren.length; x++)
-			{
-				if (currIndex == currentChildren[x].name.split("-", 1)[0])
+				if (names[i].split(".", 2)[1].split("-", 1)[0] == names[x].split(".", 2)[1].split("-", 1)[0])
 				{
-					duplicateExists =  true
-					console.log(currentChildren[i].name + " = " + currentChildren[x].name)
+					duplicateExists = true
 				}
 			}
+			x++
 		}
 	}
 	return duplicateExists
 }
-
